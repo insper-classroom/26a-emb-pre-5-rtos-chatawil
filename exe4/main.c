@@ -18,10 +18,16 @@ QueueHandle_t xQueueBtn2;
 SemaphoreHandle_t xSemaphore_g;
 
 void btn_callback(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        xSemaphoreGiveFromISR(xSemaphore_r, 0);
-        xSemaphoreGiveFromISR(xSemaphore_g, 0);
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    if (events & GPIO_IRQ_EDGE_FALL) {
+        if (gpio == BTN_PIN_R) {
+            xSemaphoreGiveFromISR(xSemaphore_r, &xHigherPriorityTaskWoken);
+        } else if (gpio == BTN_PIN_G) {
+            xSemaphoreGiveFromISR(xSemaphore_g, &xHigherPriorityTaskWoken);
+        }
     }
+
 }
 
 void led_1_task(void *p) {
@@ -113,6 +119,7 @@ int main() {
 
     xQueueButId = xQueueCreate(32, sizeof(int));
     xSemaphore_r = xSemaphoreCreateBinary();
+
     xQueueBtn2 = xQueueCreate(32, sizeof(int));
     xSemaphore_g = xSemaphoreCreateBinary();
 
@@ -120,7 +127,7 @@ int main() {
     xTaskCreate(btn_1_task, "BTN_Task 1", 256, NULL, 1, NULL);
     xTaskCreate(led_2_task, "LED_Task 2", 256, NULL, 1, NULL);
     xTaskCreate(btn_2_task, "BTN_Task 2", 256, NULL, 1, NULL);
-    
+
     vTaskStartScheduler();
 
     while (true)
